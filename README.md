@@ -8,3 +8,9 @@ There are a few controls:
 | q | quit |
 | a | increases frame timeout |
 | s | decreases frame timeout |
+
+There are also a few command line options:
+| Option | Effect |
+|-|-|
+| -t/--timeout | Set the timeout in milliseconds of each frame.\nMin: 10, Max: 1000, Increments: 10, Default: 100 |
+| -a/--alive | Initial number of cells randomly generated on the board.\nIgnored if -s/--seed is passed. Default: 1000 |
