@@ -29,6 +29,9 @@ struct Cli {
     /// Timeout in milliseconds
     #[clap(short='t', long="timeout", default_value = "100")]
     timeout: u64,
+    /// What character to use to draw each cell
+    #[clap(short='c', long="character", default_value = "*")]
+    character: char,
 }
 
 fn draw(grid: &Vec<Vec<Cell>>, args: &Cli) -> Result<()> {
@@ -41,7 +44,7 @@ fn draw(grid: &Vec<Vec<Cell>>, args: &Cli) -> Result<()> {
     for i in 0..grid.len() {
         for j in 0..grid[0].len() {
             let output = WideString::from(
-                format!("{}", if grid[i][j].is_alive() { '*' } else { ' ' }).as_str(),
+                format!("{}", if grid[i][j].is_alive() { args.character } else { ' ' }).as_str(),
             );
             let origin = Origin {
                 y: i as i32,
