@@ -12,5 +12,6 @@ There are a few controls:
 There are also a few command line options:
 | Option | Effect |
 |-|-|
-| -t/--timeout | Set the timeout in milliseconds of each frame.\nMin: 10, Max: 1000, Increments: 10, Default: 100 |
+| -t/--timeout | Set the timeout in milliseconds of each frame.
+Min: 10, Max: 1000, Increments: 10, Default: 100 |
 | -a/--alive | Initial number of cells randomly generated on the board.\nIgnored if -s/--seed is passed. Default: 1000 |
