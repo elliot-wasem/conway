@@ -9,11 +9,11 @@
  * */
 
 use anyhow::Result;
+use clap::Parser;
 use gettextrs::*;
 use ncursesw::*;
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
 use std::{collections::HashSet, path::Path};
-use clap::Parser;
 
 /// Conway's Game of Life
 ///
@@ -21,13 +21,13 @@ use clap::Parser;
 #[derive(Parser)]
 struct Cli {
     /// Number of alive cells to start with
-    #[clap(short='a', long="alive", default_value = "1000")]
+    #[clap(short = 'a', long = "alive", default_value = "1000")]
     alive: Option<usize>,
     /// Seed file to start with
-    #[clap(short='s', long="seed", default_value = "None")]
+    #[clap(short = 's', long = "seed", default_value = "None")]
     seed_file: Option<String>,
     /// Timeout in milliseconds
-    #[clap(short='t', long="timeout", default_value = "100")]
+    #[clap(short = 't', long = "timeout", default_value = "100")]
     timeout: u64,
     /// What character to use to draw each cell
     #[clap(short='c', long="character", default_value = "*")]
@@ -58,7 +58,14 @@ fn draw(grid: &Vec<Vec<Cell>>, args: &Cli) -> Result<()> {
         y: grid.len() as i32,
         x: 0,
     };
-    mvaddstr(origin, format!("Alive: {}, Timeout: {} | q: Quit, a: increase timeout, s: decrease timeout", num_alive, args.timeout).as_str())?;
+    mvaddstr(
+        origin,
+        format!(
+            "Alive: {}, Timeout: {} | q: Quit, a: increase timeout, s: decrease timeout",
+            num_alive, args.timeout
+        )
+        .as_str(),
+    )?;
     Ok(())
 }
 
@@ -143,7 +150,7 @@ fn initialize(
     ncols: usize,
     num_alive: Option<usize>,
     seed_file: Option<String>,
-) -> Vec<Vec<Cell>> {
+) -> Result<Vec<Vec<Cell>>> {
     //! Initializes the grid with the given number of alive cells or seed file.
     let mut grid: Vec<Vec<Cell>> = vec![];
     for i in 0..nrows {
@@ -153,13 +160,14 @@ fn initialize(
         }
     }
 
-    if seed_file.is_some() {
-        let seed = std::fs::read_to_string(seed_file.unwrap()).unwrap();
+    if seed_file.is_some() && Path::new(&seed_file.unwrap()).exists() {
+        //! Read the seed file and set the cells to alive based on the seed file.
+        let seed: String = std::fs::read_to_string(seed_file.unwrap()).unwrap();
         for (rownum, line) in seed.lines().enumerate() {
             if rownum >= nrows {
                 break;
             }
-            let cells = line.chars().collect::<Vec<char>>();
+            let cells: Vec<char> = line.chars().collect::<Vec<char>>();
             for (colnum, cell) in cells.iter().enumerate() {
                 if colnum >= ncols {
                     break;
@@ -169,8 +177,12 @@ fn initialize(
                 }
             }
         }
-    } else if num_alive.is_some() {
-        let mut rng = rand::thread_rng();
+    } else if (seed_file.is_some() && !Path::new(&seed_file.unwrap()).exists()) || num_alive.is_some() {
+        //! Set the cells to alive randomly based on the number of alive cells.
+        if num_alive.unwrap() > nrows * ncols {
+            return Err(anyhow::anyhow!("Number of alive cells cannot be greater than the number of cells in the grid."));
+        }
+        let mut rng: ThreadRng = rand::thread_rng();
         let mut alive_cells: HashSet<(usize, usize)> = HashSet::new();
         while alive_cells.len() < num_alive.unwrap() {
             let i: usize = rng.gen::<usize>() % nrows;
@@ -180,9 +192,11 @@ fn initialize(
         for (i, j) in alive_cells {
             grid[i][j].set_alive();
         }
+    } else {
+        return Err(anyhow::anyhow!("Invalid arguments."));
     }
 
-    grid
+    Ok(grid)
 }
 
 fn calc_next_frame(grid: &Vec<Vec<Cell>>) -> Vec<Vec<Cell>> {
@@ -206,6 +220,50 @@ fn calc_next_frame(grid: &Vec<Vec<Cell>>) -> Vec<Vec<Cell>> {
     next_frame
 }
 
+struct InputHandler {
+    input: InputType,
+    timeout: u64,
+}
+
+impl InputHandler {
+    fn new(timeout: u64) -> InputHandler {
+        InputHandler {
+            input: InputType::Continue,
+            timeout,
+        }
+    }
+
+    fn handle_input(&mut self) -> Result<InputType> {
+        let c: CharacterResult<char> = get_next_char();
+        self.input = match c {
+            CharacterResult::Character('q') => InputType::Quit,
+            CharacterResult::Character('a') => InputType::IncreaseTimeout,
+            CharacterResult::Character('s') => InputType::DecreaseTimeout,
+            _ => InputType::Continue,
+        };
+
+        if self.input != InputType::Quit && self.input != InputType::Continue {
+            if self.input == InputType::IncreaseTimeout {
+                // Increase timeout
+                if self.timeout < 1000 {
+                    self.timeout += 10;
+                }
+            } else if self.input == InputType::DecreaseTimeout {
+                // Decrease timeout
+                if self.timeout > 10 {
+                    self.timeout -= 10;
+                }
+            }
+            timeout(std::time::Duration::from_millis(self.timeout))?;
+        }
+        Ok(self.input)
+    }
+
+    fn get_input(&self) -> InputType {
+        self.input
+    }
+}
+
 enum InputType {
     Quit,
     Continue,
@@ -213,30 +271,18 @@ enum InputType {
     DecreaseTimeout,
 }
 
-fn run_frame(
-    grid: &Vec<Vec<Cell>>, args: &Cli
-) -> Result<(InputType, Vec<Vec<Cell>>)> {
+fn run_frame(grid: &Vec<Vec<Cell>>, args: &Cli, input_handler: &mut InputHandler) -> Result<(InputType, Vec<Vec<Cell>>)> {
     //! Runs a single loop of the game, drawing the grid, calculating the next
-    //! frame, and getting the next character from the user.
+    //! frame, and getting input from the user.
     erase()?;
     draw(&grid, args)?;
     refresh()?;
     let next_grid = calc_next_frame(grid);
-    let c = get_next_char();
-    let input: InputType = if c == CharacterResult::Character('q') {
-        InputType::Quit
-    } else if c == CharacterResult::Character('a') {
-        InputType::IncreaseTimeout
-    } else if c == CharacterResult::Character('s') {
-        InputType::DecreaseTimeout
-    } else {
-        InputType::Continue
-    };
+    let input: InputType = input_handler.handle_input()?;
     Ok((input, next_grid))
 }
 
 fn main() -> Result<()> {
-
     let mut args = Cli::parse();
 
     setlocale(LocaleCategory::LcAll, "");
@@ -256,7 +302,7 @@ fn main() -> Result<()> {
     /* keypresses will not be displayed on screen */
     noecho()?;
 
-    /* 
+    /*
      * Set minimum timeout to 10ms, maximum timeout to 1000ms, and makes
      * timeout is in increment of 10.
      * */
@@ -275,33 +321,17 @@ fn main() -> Result<()> {
     let nrows: usize = LINES() as usize - 2; // -2 to account for status bar at bottom
     let ncols: usize = (COLS() as usize - 1) / 2; // /2 to account for spacing characters at every
                                                   // other cell
-    /* initialize the grid */
-    let mut grid = if args.seed_file.is_some() && Path::new(&args.seed_file.clone().unwrap()).exists() {
-        initialize(nrows, ncols, None, Some(args.seed_file.clone().unwrap()))
-    } else if args.alive.is_some() {
-        initialize(nrows, ncols, Some(args.alive.unwrap()), None)
-    } else {
-        std::process::exit(1);
-    };
+                                                  /* initialize the grid */
+    let mut grid: Vec<Vec<Cell>> =
+            initialize(nrows, ncols, args.num_alive, args.seed_file)?;
+
+    let mut input_handler: InputHandler = InputHandler::new(args.timeout);
 
     loop {
-        let (input, new_grid) = run_frame(&grid, &args)?;
+        let (input, new_grid) = run_frame(&grid, &args, &mut input_handler)?;
         grid = new_grid;
-        match input {
-            InputType::Quit => break,
-            InputType::Continue => continue,
-            InputType::IncreaseTimeout => {
-                if args.timeout < 1000 {
-                    args.timeout += 10;
-                    timeout(std::time::Duration::from_millis(args.timeout as u64))?;
-                }
-            },
-            InputType::DecreaseTimeout => {
-                if args.timeout > 10 {
-                    args.timeout -= 10;
-                    timeout(std::time::Duration::from_millis(args.timeout as u64))?;
-                }
-            }
+        if input == InputType::Quit {
+            break;
         }
     }
 
