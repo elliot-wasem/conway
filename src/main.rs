@@ -264,7 +264,7 @@ impl InputHandler {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum InputType {
     Quit,
     Continue,
