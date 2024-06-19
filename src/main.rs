@@ -160,9 +160,9 @@ fn initialize(
         }
     }
 
-    if seed_file.is_some() && Path::new(&seed_file.as_ref()).exists() {
+    if seed_file.is_some() && Path::new(seed_file.clone().unwrap()).exists() {
         // Read the seed file and set the cells to alive based on the seed file.
-        let seed: String = std::fs::read_to_string(seed_file.as_ref()).unwrap();
+        let seed: String = std::fs::read_to_string(seed_file.clone().unwrap()).unwrap();
         for (rownum, line) in seed.lines().enumerate() {
             if rownum >= nrows {
                 break;
@@ -177,7 +177,7 @@ fn initialize(
                 }
             }
         }
-    } else if (seed_file.is_some() && !Path::new(&seed_file.as_ref()).exists()) || num_alive.is_some() {
+    } else if (seed_file.is_some() && !Path::new(&seed_file.clone().unwrap()).exists()) || num_alive.is_some() {
         // Set the cells to alive randomly based on the number of alive cells.
         if num_alive.unwrap() > nrows * ncols {
             return Err(anyhow::anyhow!("Number of alive cells cannot be greater than the number of cells in the grid."));
