@@ -10,8 +10,8 @@
 
 use anyhow::Result;
 use clap::Parser;
+use ncurses::*;
 use gettextrs::*;
-use ncursesw::*;
 use rand::{rngs::ThreadRng, Rng};
 use std::{collections::HashSet, path::Path};
 
@@ -50,7 +50,7 @@ fn draw(grid: &Vec<Vec<Cell>>, args: &Cli) -> Result<()> {
                 y: i as i32,
                 x: (j * 2) as i32,
             };
-            mvaddwstr(origin, &output)?;
+            mvaddstr(origin, &output)?;
         }
     }
     let num_alive = grid.iter().flatten().filter(|cell| cell.is_alive()).count();
@@ -257,10 +257,6 @@ impl InputHandler {
             timeout(std::time::Duration::from_millis(self.timeout))?;
         }
         Ok(self.input)
-    }
-
-    fn get_input(&self) -> InputType {
-        self.input
     }
 }
 
