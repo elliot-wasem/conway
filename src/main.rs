@@ -57,11 +57,10 @@ fn draw(grid: &[Vec<Cell>], input_handler: &InputHandler) -> Result<()> {
     mvaddstr(
         grid.len() as i32,
         0,
-        format!(
+        &format!(
             "Alive: {}, Timeout: {} | q: Quit, a: increase timeout, s: decrease timeout",
             num_alive, input_handler.timeout
-        )
-        .as_str(),
+        ),
     )?;
     Ok(())
 }
@@ -201,8 +200,8 @@ fn calc_next_frame(grid: &[Vec<Cell>]) -> Vec<Vec<Cell>> {
     //! Calculates the next frame of the game, returning a new grid.
     let mut next_frame: Vec<Vec<Cell>> = grid.to_vec();
 
-    for row in grid.iter() {
-        for cell in row.iter() {
+    grid.iter().for_each(|row| {
+        row.iter().for_each(|cell| {
             let count = cell.count_alive_neighbors(grid);
             if cell.is_alive() {
                 if !(2..=3).contains(&count) {
@@ -211,8 +210,8 @@ fn calc_next_frame(grid: &[Vec<Cell>]) -> Vec<Vec<Cell>> {
             } else if count == 3 {
                 next_frame[cell.x][cell.y].set_alive();
             }
-        }
-    }
+        })
+    });
     next_frame
 }
 
@@ -240,20 +239,24 @@ impl InputHandler {
             _ => InputType::Continue,
         };
 
-        if self.input != InputType::Quit && self.input != InputType::Continue {
-            if self.input == InputType::IncreaseTimeout {
+        match self.input {
+            InputType::Quit | InputType::Continue => (),
+            InputType::IncreaseTimeout => {
                 // Increase timeout
                 if self.timeout < 1000 {
                     self.timeout += 10;
                 }
-            } else if self.input == InputType::DecreaseTimeout {
+                timeout(self.timeout);
+            }
+            InputType::DecreaseTimeout => {
                 // Decrease timeout
                 if self.timeout > 10 {
                     self.timeout -= 10;
                 }
+                timeout(self.timeout);
             }
-            timeout(self.timeout);
         }
+
         Ok(self.input)
     }
 }
