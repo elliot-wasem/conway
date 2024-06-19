@@ -149,7 +149,7 @@ fn initialize(
     nrows: usize,
     ncols: usize,
     num_alive: Option<usize>,
-    seed_file: Option<String>,
+    seed_file: &Option<String>,
 ) -> Result<Vec<Vec<Cell>>> {
     //! Initializes the grid with the given number of alive cells or seed file.
     let mut grid: Vec<Vec<Cell>> = vec![];
