@@ -11,7 +11,6 @@
 use anyhow::Result;
 use clap::Parser;
 use ncurses::*;
-use gettextrs::*;
 use rand::{rngs::ThreadRng, Rng};
 use std::{collections::HashSet, path::Path};
 
@@ -28,13 +27,13 @@ struct Cli {
     seed_file: Option<String>,
     /// Timeout in milliseconds
     #[clap(short = 't', long = "timeout", default_value = "100")]
-    timeout: u64,
+    timeout: i32,
     /// What character to use to draw each cell
-    #[clap(short='c', long="character", default_value = "*")]
+    #[clap(short = 'c', long = "character", default_value = "*")]
     character: char,
 }
 
-fn draw(grid: &Vec<Vec<Cell>>, args: &Cli) -> Result<()> {
+fn draw(grid: &[Vec<Cell>], input_handler: &InputHandler) -> Result<()> {
     //! Draws the grid on the screen
     //!
     //! # Arguments
@@ -43,38 +42,33 @@ fn draw(grid: &Vec<Vec<Cell>>, args: &Cli) -> Result<()> {
     //! * `ncols` - Number of columns in the grid
     for i in 0..grid.len() {
         for j in 0..grid[0].len() {
-            let output = WideString::from(
-                format!("{}", if grid[i][j].is_alive() { args.character } else { ' ' }).as_str(),
+            let output = format!(
+                "{}",
+                if grid[i][j].is_alive() {
+                    input_handler.draw_char
+                } else {
+                    ' '
+                }
             );
-            let origin = Origin {
-                y: i as i32,
-                x: (j * 2) as i32,
-            };
-            mvaddstr(origin, &output)?;
+            mvaddstr(i as i32, (j * 2) as i32, &output)?;
         }
     }
     let num_alive = grid.iter().flatten().filter(|cell| cell.is_alive()).count();
-    let origin = Origin {
-        y: grid.len() as i32,
-        x: 0,
-    };
     mvaddstr(
-        origin,
+        grid.len() as i32,
+        0,
         format!(
             "Alive: {}, Timeout: {} | q: Quit, a: increase timeout, s: decrease timeout",
-            num_alive, args.timeout
+            num_alive, input_handler.timeout
         )
         .as_str(),
     )?;
     Ok(())
 }
 
-fn get_next_char() -> CharacterResult<char> {
+fn get_next_char() -> char {
     //! Gets the next character from the user
-    match getch() {
-        Ok(c) => c,
-        Err(_) => CharacterResult::Character('\0'),
-    }
+    getch() as u8 as char
 }
 
 /// A cell in the grid of the game.
@@ -106,7 +100,7 @@ impl Cell {
         self.alive = false;
     }
 
-    fn count_alive_neighbors(&self, grid: &Vec<Vec<Cell>>) -> usize {
+    fn count_alive_neighbors(&self, grid: &[Vec<Cell>]) -> usize {
         //! Counts the number of alive neighbors of the cell.
         //! A neighbor can be immediately next to the cell, or diagonally adjacent to it.
         //! A neighbor can also wrap around the edges of the grid.
@@ -177,10 +171,14 @@ fn initialize(
                 }
             }
         }
-    } else if (seed_file.is_some() && !Path::new(&seed_file.clone().unwrap()).exists()) || num_alive.is_some() {
+    } else if (seed_file.is_some() && !Path::new(&seed_file.clone().unwrap()).exists())
+        || num_alive.is_some()
+    {
         // Set the cells to alive randomly based on the number of alive cells.
         if num_alive.unwrap() > nrows * ncols {
-            return Err(anyhow::anyhow!("Number of alive cells cannot be greater than the number of cells in the grid."));
+            return Err(anyhow::anyhow!(
+                "Number of alive cells cannot be greater than the number of cells in the grid."
+            ));
         }
         let mut rng: ThreadRng = rand::thread_rng();
         let mut alive_cells: HashSet<(usize, usize)> = HashSet::new();
@@ -199,21 +197,19 @@ fn initialize(
     Ok(grid)
 }
 
-fn calc_next_frame(grid: &Vec<Vec<Cell>>) -> Vec<Vec<Cell>> {
+fn calc_next_frame(grid: &[Vec<Cell>]) -> Vec<Vec<Cell>> {
     //! Calculates the next frame of the game, returning a new grid.
-    let mut next_frame: Vec<Vec<Cell>> = grid.clone();
+    let mut next_frame: Vec<Vec<Cell>> = grid.to_vec();
 
     for row in grid.iter() {
         for cell in row.iter() {
-            let count = cell.count_alive_neighbors(&grid);
+            let count = cell.count_alive_neighbors(grid);
             if cell.is_alive() {
-                if count < 2 || count > 3 {
+                if !(2..=3).contains(&count) {
                     next_frame[cell.x][cell.y].set_dead();
                 }
-            } else {
-                if count == 3 {
-                    next_frame[cell.x][cell.y].set_alive();
-                }
+            } else if count == 3 {
+                next_frame[cell.x][cell.y].set_alive();
             }
         }
     }
@@ -222,23 +218,25 @@ fn calc_next_frame(grid: &Vec<Vec<Cell>>) -> Vec<Vec<Cell>> {
 
 struct InputHandler {
     input: InputType,
-    timeout: u64,
+    timeout: i32,
+    draw_char: char,
 }
 
 impl InputHandler {
-    fn new(timeout: u64) -> InputHandler {
+    fn new(timeout: i32, draw_char: char) -> InputHandler {
         InputHandler {
             input: InputType::Continue,
             timeout,
+            draw_char,
         }
     }
 
     fn handle_input(&mut self) -> Result<InputType> {
-        let c: CharacterResult<char> = get_next_char();
+        let c: char = get_next_char();
         self.input = match c {
-            CharacterResult::Character('q') => InputType::Quit,
-            CharacterResult::Character('a') => InputType::IncreaseTimeout,
-            CharacterResult::Character('s') => InputType::DecreaseTimeout,
+            'q' => InputType::Quit,
+            'a' => InputType::IncreaseTimeout,
+            's' => InputType::DecreaseTimeout,
             _ => InputType::Continue,
         };
 
@@ -254,7 +252,7 @@ impl InputHandler {
                     self.timeout -= 10;
                 }
             }
-            timeout(std::time::Duration::from_millis(self.timeout))?;
+            timeout(self.timeout);
         }
         Ok(self.input)
     }
@@ -268,12 +266,15 @@ enum InputType {
     DecreaseTimeout,
 }
 
-fn run_frame(grid: &Vec<Vec<Cell>>, args: &Cli, input_handler: &mut InputHandler) -> Result<(InputType, Vec<Vec<Cell>>)> {
+fn run_frame(
+    grid: &[Vec<Cell>],
+    input_handler: &mut InputHandler,
+) -> Result<(InputType, Vec<Vec<Cell>>)> {
     //! Runs a single loop of the game, drawing the grid, calculating the next
     //! frame, and getting input from the user.
-    erase()?;
-    draw(&grid, args)?;
-    refresh()?;
+    erase();
+    draw(grid, input_handler)?;
+    refresh();
     let next_grid = calc_next_frame(grid);
     let input: InputType = input_handler.handle_input()?;
     Ok((input, next_grid))
@@ -282,22 +283,22 @@ fn run_frame(grid: &Vec<Vec<Cell>>, args: &Cli, input_handler: &mut InputHandler
 fn main() -> Result<()> {
     let mut args = Cli::parse();
 
-    setlocale(LocaleCategory::LcAll, "");
+    ncurses::setlocale(LcCategory::all, "")?;
 
     /* initialize screen */
-    initscr()?;
+    initscr();
 
     /* hide cursor */
-    curs_set(CursorType::Invisible)?;
+    curs_set(CURSOR_VISIBILITY::CURSOR_INVISIBLE);
 
     /* enables colors */
-    start_color()?;
+    start_color();
 
     /* initially refreshes screen, emptying it */
-    refresh()?;
+    refresh();
 
     /* keypresses will not be displayed on screen */
-    noecho()?;
+    noecho();
 
     /*
      * Set minimum timeout to 10ms, maximum timeout to 1000ms, and makes
@@ -312,27 +313,26 @@ fn main() -> Result<()> {
     }
 
     /* Applies timeout value */
-    timeout(std::time::Duration::from_millis(args.timeout as u64))?;
+    timeout(args.timeout);
 
     /* get the number of rows and columns */
     let nrows: usize = LINES() as usize - 2; // -2 to account for status bar at bottom
     let ncols: usize = (COLS() as usize - 1) / 2; // /2 to account for spacing characters at every
                                                   // other cell
                                                   /* initialize the grid */
-    let mut grid: Vec<Vec<Cell>> =
-            initialize(nrows, ncols, args.alive, &args.seed_file)?;
+    let mut grid: Vec<Vec<Cell>> = initialize(nrows, ncols, args.alive, &args.seed_file)?;
 
-    let mut input_handler: InputHandler = InputHandler::new(args.timeout);
+    let mut input_handler: InputHandler = InputHandler::new(args.timeout, args.character);
 
     loop {
-        let (input, new_grid) = run_frame(&grid, &args, &mut input_handler)?;
+        let (input, new_grid) = run_frame(&grid, &mut input_handler)?;
         grid = new_grid;
         if input == InputType::Quit {
             break;
         }
     }
 
-    endwin()?;
+    endwin();
 
     Ok(())
 }

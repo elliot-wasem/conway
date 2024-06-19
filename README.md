@@ -15,3 +15,4 @@ There are also a few command line options:
 | -t/--timeout | Set the timeout in milliseconds of each frame. Min: 10, Max: 1000, Increments: 10, Default: 100 |
 | -a/--alive | Initial number of cells randomly generated on the board. Ignored if -s/--seed is passed. Default: 1000 |
 | -s/--seed | Seed file to be used for the initial state of the board. Aligns file with top-left corner, and truncates lines/columns that won't fit on screen. Overrides -a/--alive. |
+| -c/--character | Character used to draw cells. Default: * |
