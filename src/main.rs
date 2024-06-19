@@ -160,7 +160,7 @@ fn initialize(
         }
     }
 
-    if seed_file.is_some() && Path::new(seed_file.clone().unwrap()).exists() {
+    if seed_file.is_some() && Path::new(&seed_file.clone().unwrap()).exists() {
         // Read the seed file and set the cells to alive based on the seed file.
         let seed: String = std::fs::read_to_string(seed_file.clone().unwrap()).unwrap();
         for (rownum, line) in seed.lines().enumerate() {
