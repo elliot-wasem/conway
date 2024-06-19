@@ -324,7 +324,7 @@ fn main() -> Result<()> {
                                                   // other cell
                                                   /* initialize the grid */
     let mut grid: Vec<Vec<Cell>> =
-            initialize(nrows, ncols, args.num_alive, args.seed_file)?;
+            initialize(nrows, ncols, args.alive, args.seed_file)?;
 
     let mut input_handler: InputHandler = InputHandler::new(args.timeout);
 
