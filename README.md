@@ -8,6 +8,8 @@ There are a few controls:
 | q | quit |
 | a | increases frame timeout |
 | s | decreases frame timeout |
+| j/Down arrow | Select next seed in the demo |
+| k/Up arrow | Select previous seed in the demo |
 
 There are also a few command line options:
 | Option | Effect |
@@ -16,3 +18,4 @@ There are also a few command line options:
 | -a/--alive | Initial number of cells randomly generated on the board. Ignored if -s/--seed is passed. Default: 1000 |
 | -s/--seed | Seed file to be used for the initial state of the board. Aligns file with top-left corner, and truncates lines/columns that won't fit on screen. Overrides -a/--alive. |
 | -c/--character | Character used to draw cells. Default: * |
+| -d/--demo | Runs as a demo program to cycle through seed files. |
