@@ -1,3 +1,7 @@
+//! This module contains the Window struct and its methods.
+//!
+//! The Window struct is a wrapper around the ncurses WINDOW struct.
+
 use anyhow::Result;
 use ncurses::*;
 
@@ -58,6 +62,7 @@ impl Window {
     }
 
     pub fn draw_border(&self) -> Result<()> {
+        //! Draws a border along the right-hand side of the window.
         for i in 0..self.rows {
             mvwprintw(self.win, i, self.cols - 1, "|")?;
         }
@@ -74,6 +79,7 @@ impl Window {
     }
 
     pub fn print(&self, x: i32, y: i32, s: &str, color_pair: Option<&ColorPair>) -> Result<()> {
+        //! Prints a string to the window at the specified x and y coordinates.
         if let Some(color) = color_pair {
             init_pair(1, color.foreground as i16, color.background as i16);
             wattron(self.win, COLOR_PAIR(1));
