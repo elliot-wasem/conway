@@ -103,8 +103,7 @@ pub fn draw(window: &mut Window, grid: &[Vec<Cell>], input_handler: &InputHandle
             num_alive, input_handler.timeout
         ),
         None,
-    )?;
-    Ok(())
+    )
 }
 
 pub struct InputHandler {
@@ -209,6 +208,7 @@ pub fn initialize(
     {
         // Set the cells to alive randomly based on the number of alive cells.
         if num_alive.unwrap() > grid.len() * grid[0].len() {
+            endwin();
             return Err(anyhow::anyhow!(
                 "Number of alive cells cannot be greater than the number of cells in the grid."
             ));
@@ -224,6 +224,7 @@ pub fn initialize(
             grid[i][j].set_alive();
         }
     } else {
+        endwin();
         return Err(anyhow::anyhow!("Invalid arguments."));
     }
 
