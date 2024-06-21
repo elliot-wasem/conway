@@ -62,9 +62,11 @@ pub fn run(args: &Cli) -> Result<()> {
 
     // Initialize the grid with the first sample
     let mut cur_input: InputType = InputType::Continue;
-    let mut input_handler: InputHandler = InputHandler::new(args.timeout, args.character);
+    let mut input_handler: InputHandler = InputHandler::new();
     let mut filename: String = format!("seeds/{}", &samples[cur_sample as usize]);
     let mut grid: Vec<Vec<Cell>> = initialize(&mut display, args.alive, &Some(filename))?;
+
+    let mut state: super::conway::State = super::conway::State::new(args.timeout, args.character);
 
     // color for the selected sample
     let selected_color: ColorPair = ColorPair::new(Color::Black, Color::White);
@@ -108,7 +110,7 @@ pub fn run(args: &Cli) -> Result<()> {
         }
 
         // run a single frame, collecting input and the updated grid.
-        let (input, new_grid) = run_frame(&mut display, &grid, &mut input_handler)?;
+        let (input, new_grid) = run_frame(&mut display, &grid, &mut input_handler, &mut state)?;
 
         // refresh just the sidebar. The display window will be refreshed as
         // part of the call to 'run_frame()'

@@ -74,7 +74,7 @@ impl Cell {
     }
 }
 
-pub fn draw(window: &mut Window, grid: &[Vec<Cell>], input_handler: &InputHandler) -> Result<()> {
+pub fn draw(window: &mut Window, grid: &[Vec<Cell>], state: &State) -> Result<()> {
     //! Draws the grid on the screen
     //!
     //! # Arguments
@@ -87,7 +87,7 @@ pub fn draw(window: &mut Window, grid: &[Vec<Cell>], input_handler: &InputHandle
             let output = format!(
                 "{}",
                 if grid[i][j].is_alive() {
-                    input_handler.draw_char
+                    state.draw_char
                 } else {
                     ' '
                 }
@@ -101,28 +101,51 @@ pub fn draw(window: &mut Window, grid: &[Vec<Cell>], input_handler: &InputHandle
         grid.len() as i32,
         &format!(
             "Alive: {}, Timeout: {} | q: Quit, a: increase timeout, s: decrease timeout",
-            num_alive, input_handler.timeout
+            num_alive, state.timeout
         ),
         None,
     )
 }
 
-pub struct InputHandler {
-    input: InputType,
+pub struct State {
     timeout: i32,
     draw_char: char,
 }
 
+impl State {
+    pub fn new(timeout: i32, draw_char: char) -> State {
+        State { timeout, draw_char }
+    }
+
+    pub fn get_timeout(&self) -> i32 {
+        self.timeout
+    }
+
+    pub fn get_draw_char(&self) -> char {
+        self.draw_char
+    }
+
+    pub fn set_timeout(&mut self, timeout: i32) {
+        self.timeout = timeout;
+    }
+
+    pub fn set_draw_char(&mut self, draw_char: char) {
+        self.draw_char = draw_char;
+    }
+}
+
+pub struct InputHandler {
+    input: InputType,
+}
+
 impl InputHandler {
-    pub fn new(timeout: i32, draw_char: char) -> InputHandler {
+    pub fn new() -> InputHandler {
         InputHandler {
             input: InputType::Continue,
-            timeout,
-            draw_char,
         }
     }
 
-    pub fn handle_input(&mut self) -> Result<InputType> {
+    pub fn handle_input(&mut self, state: &mut State) -> Result<InputType> {
         let c: i32 = getch();
         self.input = if c == ArrowKeys::Down as i32 || c == 'j' as i32 {
             InputType::Down
@@ -141,17 +164,17 @@ impl InputHandler {
             InputType::Quit | InputType::Continue => (),
             InputType::IncreaseTimeout => {
                 // Increase timeout
-                if self.timeout < 1000 {
-                    self.timeout += 10;
+                if state.timeout < 1000 {
+                    state.timeout += 10;
                 }
-                timeout(self.timeout);
+                timeout(state.timeout);
             }
             InputType::DecreaseTimeout => {
                 // Decrease timeout
-                if self.timeout > 10 {
-                    self.timeout -= 10;
+                if state.timeout > 10 {
+                    state.timeout -= 10;
                 }
-                timeout(self.timeout);
+                timeout(state.timeout);
             }
             _ => (),
         }
@@ -255,13 +278,14 @@ pub fn run_frame(
     window: &mut Window,
     grid: &[Vec<Cell>],
     input_handler: &mut InputHandler,
+    state: &mut State,
 ) -> Result<(InputType, Vec<Vec<Cell>>)> {
     //! Runs a single loop of the game, drawing the grid, calculating the next
     //! frame, and getting input from the user.
     window.erase();
-    draw(window, grid, input_handler)?;
+    draw(window, grid, state)?;
     window.refresh();
     let next_grid = calc_next_frame(grid);
-    let input: InputType = input_handler.handle_input()?;
+    let input: InputType = input_handler.handle_input(state)?;
     Ok((input, next_grid))
 }

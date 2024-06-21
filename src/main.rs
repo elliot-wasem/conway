@@ -84,15 +84,17 @@ fn main() -> Result<()> {
     let nrows: usize = LINES() as usize - 1;
     let ncols: usize = COLS() as usize - 1;
 
-    let mut input_handler: InputHandler = InputHandler::new(args.timeout, args.character);
+    let mut input_handler: InputHandler = InputHandler::new();
 
     let mut win: Window = Window::new(nrows as i32, ncols as i32, 0, 0);
 
     /* initialize the grid */
     let mut grid: Vec<Vec<Cell>> = initialize(&mut win, args.alive, &args.seed_file)?;
 
+    let mut state: conway::State = conway::State::new(args.timeout, args.character);
+
     loop {
-        let (input, new_grid) = run_frame(&mut win, &grid, &mut input_handler)?;
+        let (input, new_grid) = run_frame(&mut win, &grid, &mut input_handler, &mut state)?;
         grid = new_grid;
         if input == InputType::Quit {
             break;
