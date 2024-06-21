@@ -81,6 +81,7 @@ pub fn draw(window: &mut Window, grid: &[Vec<Cell>], input_handler: &InputHandle
     //! * `grid` - The grid to draw
     //! * `nrows` - Number of rows in the grid
     //! * `ncols` - Number of columns in the grid
+    //! * `input_handler` - Input handler to get the character to draw for alive cells
     for i in 0..grid.len() {
         for j in 0..grid[0].len() {
             let output = format!(
