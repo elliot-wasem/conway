@@ -138,6 +138,12 @@ pub struct InputHandler {
     input: InputType,
 }
 
+impl Default for InputHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InputHandler {
     pub fn new() -> InputHandler {
         InputHandler {
